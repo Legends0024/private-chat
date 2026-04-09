@@ -150,6 +150,28 @@ export default function Chat() {
     }
   };
 
+  const handlePaste = (e) => {
+    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+    for (let index in items) {
+      const item = items[index];
+      if (item.kind === "file" && item.type.indexOf("image") !== -1) {
+        const blob = item.getAsFile();
+        const reader = new FileReader();
+        setIsUploading(true);
+        reader.onload = (event) => {
+          socket.emit("send_message", { 
+            room, 
+            username, 
+            msg: event.target.result, 
+            type: "image" 
+          });
+          setIsUploading(false);
+        };
+        reader.readAsDataURL(blob);
+      }
+    }
+  };
+
   const handleSend = (e) => {
     e.preventDefault();
     if (message.trim() && isConnected) {
@@ -368,6 +390,7 @@ export default function Chat() {
               placeholder={isConnected ? (window.innerWidth < 640 ? "Type..." : "Message room...") : "Reconnecting..."}
               value={message}
               onChange={handleTyping}
+              onPaste={handlePaste}
               disabled={!isConnected}
               className="glass-input w-full pl-22 md:pl-24 pr-4 py-3 md:py-3.5 text-sm md:text-base placeholder:text-gray-600 focus:placeholder:text-gray-500"
               style={{ backgroundColor: "#1e293b", color: "white" }}
