@@ -1,19 +1,8 @@
 services:
-  # Backend Web Service
+  # Unified Chat Application (Docker)
   - type: web
-    name: chat-backend
-    runtime: python
-    rootDir: backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn -k eventlet -w 1 app:app
+    name: private-chat-unified
+    runtime: docker
     envVars:
       - key: PORT
         value: 10000
-
-  # Frontend Static Site
-  - type: web
-    name: chat-frontend
-    runtime: static
-    rootDir: frontend
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
