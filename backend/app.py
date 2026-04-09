@@ -13,7 +13,7 @@ app = Flask(__name__)
 CORS(app)
 
 # Use eventlet for production performance and Render compatibility
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet", max_http_buffer_size=20 * 1024 * 1024)
 
 # State management
 rooms = {}  # { room_key: [list of usernames] }

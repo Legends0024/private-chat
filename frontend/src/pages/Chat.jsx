@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import socket from "../services/socket";
 import { useChat } from "../context/ChatContext";
-import { Copy, LogOut, Send, ChevronDown, CheckCircle2, Smile, ImageUp } from "lucide-react";
+import { Copy, LogOut, Send, ChevronDown, CheckCircle2, Smile, ImageUp, Loader2 } from "lucide-react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
@@ -16,6 +16,7 @@ export default function Chat() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [typingUsers, setTypingUsers] = useState({});
   const [copied, setCopied] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   
   const scrollRef = useRef(null);
   const userListRef = useRef(null);
@@ -109,7 +110,8 @@ export default function Chat() {
 
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
-    if (file) {
+    if (file && isConnected) {
+      setIsUploading(true);
       const reader = new FileReader();
       reader.onload = (event) => {
         socket.emit("send_message", { 
@@ -118,6 +120,13 @@ export default function Chat() {
           msg: event.target.result, 
           type: "image" 
         });
+        setIsUploading(false);
+        // Reset file input so same file can be selected again
+        e.target.value = "";
+      };
+      reader.onerror = () => {
+        setIsUploading(false);
+        alert("Failed to read image file.");
       };
       reader.readAsDataURL(file);
     }
@@ -240,18 +249,35 @@ export default function Chat() {
           </AnimatePresence>
         </LayoutGroup>
 
-        {anyoneTyping.length > 0 && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="flex flex-col items-start">
-            <div className="bg-galaxy-surface/50 border border-white/10 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-lg">
-              <div className="flex gap-1">
-                <motion.span animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 0.6 }} className="w-1 h-1 bg-indigo-400 rounded-full" />
-                <motion.span animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }} className="w-1 h-1 bg-indigo-400 rounded-full" />
-                <motion.span animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }} className="w-1 h-1 bg-indigo-400 rounded-full" />
-              </div>
-              <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{anyoneTyping.length === 1 ? `${anyoneTyping[0]} is typing...` : "Multiple people typing..."}</span>
-            </div>
-          </motion.div>
-        )}
+        {/* Status Indicators (Typing / Uploading) */}
+        <div className="flex flex-col items-start gap-2">
+          <AnimatePresence>
+            {isUploading && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}>
+                <div className="bg-indigo-500/20 border border-indigo-500/30 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-lg">
+                  <Loader2 size={14} className="animate-spin text-indigo-400" />
+                  <span className="text-[10px] text-indigo-100 font-black uppercase tracking-widest">Sending Photo...</span>
+                </div>
+              </motion.div>
+            )}
+            
+            {anyoneTyping.length > 0 && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}>
+                <div className="bg-galaxy-surface/50 border border-white/10 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-lg">
+                  <div className="flex gap-1">
+                    <motion.span animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 0.6 }} className="w-1 h-1 bg-indigo-400 rounded-full" />
+                    <motion.span animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }} className="w-1 h-1 bg-indigo-400 rounded-full" />
+                    <motion.span animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }} className="w-1 h-1 bg-indigo-400 rounded-full" />
+                  </div>
+                  <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">
+                    {anyoneTyping.length === 1 ? `${anyoneTyping[0]} is typing...` : `${anyoneTyping.length} people typing...`}
+                  </span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+        
         <div ref={scrollRef} className="h-4" />
       </main>
 
