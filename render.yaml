@@ -1,0 +1,19 @@
+services:
+  # Backend Web Service
+  - type: web
+    name: chat-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -k eventlet -w 1 app:app
+    envVars:
+      - key: PORT
+        value: 10000
+
+  # Frontend Static Site
+  - type: static
+    name: chat-frontend
+    runtime: node
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
