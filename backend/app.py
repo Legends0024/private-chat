@@ -48,6 +48,7 @@ def on_send_message(data):
     room = data.get("room")
     username = data.get("username")
     msg = data.get("msg")
+    msg_type = data.get("type", "text") # Default to text
     
     if not room or not msg:
         return
@@ -55,6 +56,7 @@ def on_send_message(data):
     payload = {
         "username": username,
         "msg": msg,
+        "type": msg_type,
         "timestamp": datetime.now().strftime("%H:%M")
     }
     emit("receive_message", payload, to=room)

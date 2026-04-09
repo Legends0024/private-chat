@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import socket from "../services/socket";
 import { useChat } from "../context/ChatContext";
-import { Copy, LogOut, Send, ChevronDown, CheckCircle2, Smile } from "lucide-react";
+import { Copy, LogOut, Send, ChevronDown, CheckCircle2, Smile, ImageUp } from "lucide-react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
@@ -21,6 +21,7 @@ export default function Chat() {
   const userListRef = useRef(null);
   const emojiPickerRef = useRef(null);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
   const audioRef = useRef(new Audio("https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3"));
 
   // SOCKET LOGIC
@@ -32,7 +33,7 @@ export default function Chat() {
     const onDisconnect = () => setIsConnected(false);
     
     const onReceiveMessage = (data) => {
-      setMessages((prev) => [...prev, { ...data, type: "message", id: Date.now() + Math.random() }]);
+      setMessages((prev) => [...prev, { ...data, id: Date.now() + Math.random() }]);
       if (data.username !== username) {
         audioRef.current.play().catch(() => {});
       }
@@ -103,14 +104,29 @@ export default function Chat() {
 
   const onEmojiSelect = (emoji) => {
     setMessage(prev => prev + emoji.native);
-    // Keep focus on input
     inputRef.current?.focus();
+  };
+
+  const handleImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        socket.emit("send_message", { 
+          room, 
+          username, 
+          msg: event.target.result, 
+          type: "image" 
+        });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSend = (e) => {
     e.preventDefault();
     if (message.trim() && isConnected) {
-      socket.emit("send_message", { room, username, msg: message });
+      socket.emit("send_message", { room, username, msg: message, type: "text" });
       socket.emit("typing", { room, username, is_typing: false });
       setMessage("");
       setShowEmojiPicker(false);
@@ -202,7 +218,18 @@ export default function Chat() {
                   <div className={`flex flex-col ${m.username === username ? "items-end" : "items-start"}`}>
                     {m.username !== username && <span className="text-[10px] font-black text-gray-500 mb-1.5 ml-2 uppercase tracking-widest">{m.username}</span>}
                     <div className={`max-w-[85%] md:max-w-[70%] px-5 py-3 shadow-2xl relative group ${m.username === username ? "bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-[22px] rounded-br-none border-t border-white/20" : "bg-galaxy-surface border border-white/10 text-galaxy-text rounded-[22px] rounded-bl-none shadow-black/40"}`}>
-                      <p className="text-sm leading-relaxed font-bold selection:bg-white/20 whitespace-pre-wrap break-words">{m.msg}</p>
+                      {m.type === "image" ? (
+                        <div className="relative group/msg">
+                          <img 
+                            src={m.msg} 
+                            alt="Shared" 
+                            className="rounded-xl max-w-full h-auto object-contain shadow-2xl border border-white/5 transition-transform group-hover/msg:scale-[1.02]" 
+                            onLoad={() => scrollRef.current?.scrollIntoView({ behavior: "smooth" })}
+                          />
+                        </div>
+                      ) : (
+                        <p className="text-sm leading-relaxed font-bold selection:bg-white/20 whitespace-pre-wrap break-words">{m.msg}</p>
+                      )}
                       {m.username === username && <div className="absolute inset-0 bg-indigo-500/20 blur-xl -z-10 opacity-0 group-hover:opacity-100 transition-opacity rounded-[22px]" />}
                     </div>
                     <span className="text-[9px] text-gray-500 mt-1.5 mx-2 font-black opacity-60">{m.timestamp}</span>
@@ -243,9 +270,17 @@ export default function Chat() {
 
         <form onSubmit={handleSend} className="max-w-4xl mx-auto flex gap-3 relative group">
           <div className="flex-1 relative flex items-center">
-            <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`absolute left-4 p-1.5 rounded-full transition-all ${showEmojiPicker ? "bg-indigo-500 text-white" : "text-gray-500 hover:text-white hover:bg-white/5"}`}>
-              <Smile size={20} />
-            </button>
+            <div className="absolute left-2 flex items-center gap-1">
+              <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`p-1.5 rounded-full transition-all ${showEmojiPicker ? "bg-indigo-500 text-white" : "text-gray-500 hover:text-white"}`}>
+                <Smile size={20} />
+              </button>
+              <button type="button" onClick={() => fileInputRef.current?.click()} className="p-1.5 text-gray-500 hover:text-white transition-all">
+                <ImageUp size={20} />
+              </button>
+            </div>
+            
+            <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="hidden" />
+            
             <input
               ref={inputRef}
               type="text"
@@ -253,7 +288,7 @@ export default function Chat() {
               value={message}
               onChange={handleTyping}
               disabled={!isConnected}
-              className="glass-input w-full pl-12"
+              className="glass-input w-full pl-24"
               style={{ backgroundColor: "#1e293b", color: "white" }}
             />
           </div>
