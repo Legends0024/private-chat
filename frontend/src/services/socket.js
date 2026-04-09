@@ -1,12 +1,10 @@
 import { io } from "socket.io-client";
 
-// In Unified mode, the frontend is served by the backend, 
-// so we can connect to the same host using an empty string or window.location.origin.
-const URL = window.location.origin;
+// Standard separate deployment setup
+const URL = import.meta.env.VITE_BACKEND_URL;
 
 const socket = io(URL, {
-  transports: ["websocket"],
-  autoConnect: false,
+  transports: ["websocket"]
 });
 
 export default socket;

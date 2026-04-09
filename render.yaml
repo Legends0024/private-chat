@@ -1,8 +1,0 @@
-services:
-  # Unified Chat Application (Docker)
-  - type: web
-    name: private-chat-unified
-    runtime: docker
-    envVars:
-      - key: PORT
-        value: 10000
