@@ -1,10 +1,28 @@
 import React, { useState, useEffect, useRef } from "react";
 import socket from "../services/socket";
 import { useChat } from "../context/ChatContext";
-import { Copy, LogOut, Send, ChevronDown, CheckCircle2, Smile, ImageUp, Loader2 } from "lucide-react";
+import { Copy, LogOut, Send, ChevronDown, CheckCircle2, Smile, ImageUp, Loader2, X, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
+
+// Helper for Link Detection
+const MessageContent = ({ text }) => {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+
+  return (
+    <p className="text-sm md:text-base leading-relaxed font-bold selection:bg-white/20 whitespace-pre-wrap break-words">
+      {parts.map((part, i) => 
+        urlRegex.test(part) ? (
+          <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline inline-flex items-center gap-1 break-all">
+            {part} <ExternalLink size={10} />
+          </a>
+        ) : part
+      )}
+    </p>
+  );
+};
 
 export default function Chat() {
   const { username, room, setRoom } = useChat();
@@ -14,6 +32,7 @@ export default function Chat() {
   const [isConnected, setIsConnected] = useState(socket.connected);
   const [showUserList, setShowUserList] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
   const [typingUsers, setTypingUsers] = useState({});
   const [copied, setCopied] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -121,7 +140,6 @@ export default function Chat() {
           type: "image" 
         });
         setIsUploading(false);
-        // Reset file input so same file can be selected again
         e.target.value = "";
       };
       reader.onerror = () => {
@@ -154,6 +172,31 @@ export default function Chat() {
 
   return (
     <div className="flex flex-col h-screen bg-galaxy-dark text-galaxy-text font-sans overflow-hidden selection:bg-indigo-500/30">
+      {/* IMAGE PREVIEW MODAL */}
+      <AnimatePresence>
+        {selectedImage && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 md:p-12 cursor-zoom-out"
+            onClick={() => setSelectedImage(null)}
+          >
+            <motion.button 
+              initial={{ scale: 0 }} animate={{ scale: 1 }}
+              className="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all z-[110]"
+              onClick={(e) => { e.stopPropagation(); setSelectedImage(null); }}
+            >
+              <X size={24} />
+            </motion.button>
+            <motion.img 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              src={selectedImage} 
+              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl pointer-events-none shadow-indigo-500/10"
+              alt="Preview"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* BACKGROUND EFFECTS */}
       <div className="fixed inset-0 pointer-events-none opacity-20">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600 rounded-full blur-[120px]" />
@@ -162,23 +205,23 @@ export default function Chat() {
 
       {/* HEADER */}
       <header className="bg-galaxy-surface/80 backdrop-blur-xl h-16 flex items-center justify-between px-4 md:px-8 border-b border-white/10 shrink-0 sticky top-0 z-50">
-        <div className="flex items-center gap-4">
-          <div className="flex flex-col">
+        <div className="flex items-center gap-3 md:gap-4 overflow-hidden">
+          <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-gray-500 font-black uppercase tracking-[0.2em]">Private Space</span>
-              <div className="flex items-center gap-1.5 bg-white/5 px-2 py-0.5 rounded-md border border-white/10 shadow-lg shadow-black/20">
-                <span className="font-mono text-indigo-400 font-black text-sm">{room}</span>
-                <button onClick={copyRoomKey} className="text-gray-500 hover:text-white transition-colors">
+              <span className="hidden xs:inline text-[9px] md:text-[10px] text-gray-500 font-black uppercase tracking-[0.2em] truncate">Private Space</span>
+              <div className="flex items-center gap-1.5 bg-white/5 px-2 py-0.5 rounded-md border border-white/10 shadow-lg shadow-black/20 overflow-hidden">
+                <span className="font-mono text-indigo-400 font-black text-xs md:text-sm truncate">{room}</span>
+                <button onClick={copyRoomKey} className="text-gray-500 hover:text-white transition-colors shrink-0">
                   {copied ? <CheckCircle2 size={12} className="text-green-500" /> : <Copy size={12} />}
                 </button>
               </div>
             </div>
             
             <div className="relative" ref={userListRef}>
-              <button onClick={() => setShowUserList(!showUserList)} className="flex items-center gap-1.5 mt-1 group">
+              <button onClick={() => setShowUserList(!showUserList)} className="flex items-center gap-1.5 mt-0.5 group shrink-0">
                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
                 <span className="text-[10px] text-gray-400 font-bold group-hover:text-white transition-colors flex items-center gap-1">
-                  {onlineUsers.length} online <ChevronDown size={10} className={showUserList ? "rotate-180" : ""} />
+                  {onlineUsers.length} <span className="hidden xs:inline">online</span> <ChevronDown size={10} className={showUserList ? "rotate-180" : ""} />
                 </span>
               </button>
 
@@ -193,7 +236,7 @@ export default function Chat() {
                       {onlineUsers.map((user, idx) => (
                         <div key={idx} className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-white/10 transition-colors">
                           <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                          <span className={`text-xs font-bold ${user === username ? "text-indigo-400" : "text-gray-200"}`}>
+                          <span className={`text-xs font-bold truncate ${user === username ? "text-indigo-400" : "text-gray-200"}`}>
                             {user} {user === username && "(Me)"}
                           </span>
                         </div>
@@ -206,42 +249,45 @@ export default function Chat() {
           </div>
         </div>
 
-        <button onClick={() => setRoom(null)} className="p-2.5 bg-white/10 hover:bg-red-500/20 text-white hover:text-red-400 rounded-2xl border border-white/20 transition-all active:scale-95 group shadow-lg">
-          <LogOut size={20} className="group-hover:-translate-x-0.5 transition-transform" />
+        <button onClick={() => setRoom(null)} className="p-2 md:p-2.5 bg-white/10 hover:bg-red-500/20 text-white hover:text-red-400 rounded-xl md:rounded-2xl border border-white/20 transition-all active:scale-95 group shadow-lg shrink-0">
+          <LogOut size={18} className="md:size-[20px] group-hover:-translate-x-0.5 transition-transform" />
         </button>
       </header>
 
       {/* CHAT AREA */}
-      <main className="flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-6 custom-scrollbar relative">
+      <main className="flex-1 overflow-y-auto px-3 md:px-8 py-4 md:py-6 space-y-4 md:space-y-6 custom-scrollbar relative">
         <LayoutGroup>
           <AnimatePresence initial={false}>
             {messages.map((m) => (
               <motion.div key={m.id} layout initial={{ opacity: 0, y: 20, scale: 0.9, filter: "blur(10px)" }} animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}>
                 {m.type === "system" ? (
                   <div className="flex justify-center my-2 text-center">
-                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] bg-white/5 px-4 py-1 rounded-full border border-white/10">
+                    <span className="text-[9px] md:text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] bg-white/5 px-4 py-1 rounded-full border border-white/10">
                       {m.msg}
                     </span>
                   </div>
                 ) : (
                   <div className={`flex flex-col ${m.username === username ? "items-end" : "items-start"}`}>
-                    {m.username !== username && <span className="text-[10px] font-black text-gray-500 mb-1.5 ml-2 uppercase tracking-widest">{m.username}</span>}
-                    <div className={`max-w-[85%] md:max-w-[70%] px-5 py-3 shadow-2xl relative group ${m.username === username ? "bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-[22px] rounded-br-none border-t border-white/20" : "bg-galaxy-surface border border-white/10 text-galaxy-text rounded-[22px] rounded-bl-none shadow-black/40"}`}>
+                    {m.username !== username && <span className="text-[10px] font-black text-gray-500 mb-1 ml-2 uppercase tracking-widest">{m.username}</span>}
+                    <div className={`max-w-[92%] md:max-w-[70%] px-4 md:px-5 py-2.5 md:py-3 shadow-2xl relative group ${m.username === username ? "bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-[20px] md:rounded-[22px] rounded-br-none border-t border-white/20 shadow-indigo-500/10" : "bg-galaxy-surface border border-white/10 text-galaxy-text rounded-[20px] md:rounded-[22px] rounded-bl-none shadow-black/40"}`}>
                       {m.type === "image" ? (
-                        <div className="relative group/msg">
+                        <div className="relative group/msg my-1 cursor-zoom-in" onClick={() => setSelectedImage(m.msg)}>
                           <img 
                             src={m.msg} 
                             alt="Shared" 
-                            className="rounded-xl max-w-full h-auto object-contain shadow-2xl border border-white/5 transition-transform group-hover/msg:scale-[1.02]" 
+                            className="rounded-xl max-w-full h-auto object-contain shadow-2xl border border-white/5 transition-all group-hover/msg:brightness-110 group-hover/msg:scale-[1.01]" 
                             onLoad={() => scrollRef.current?.scrollIntoView({ behavior: "smooth" })}
                           />
+                          <div className="absolute inset-0 bg-white/0 group-hover/msg:bg-white/5 transition-colors rounded-xl flex items-center justify-center opacity-0 group-hover/msg:opacity-100">
+                             <span className="bg-black/40 backdrop-blur-md p-2 rounded-full border border-white/10 text-white"><ExternalLink size={16}/></span>
+                          </div>
                         </div>
                       ) : (
-                        <p className="text-sm leading-relaxed font-bold selection:bg-white/20 whitespace-pre-wrap break-words">{m.msg}</p>
+                        <MessageContent text={m.msg} />
                       )}
                       {m.username === username && <div className="absolute inset-0 bg-indigo-500/20 blur-xl -z-10 opacity-0 group-hover:opacity-100 transition-opacity rounded-[22px]" />}
                     </div>
-                    <span className="text-[9px] text-gray-500 mt-1.5 mx-2 font-black opacity-60">{m.timestamp}</span>
+                    <span className="text-[9px] text-gray-500 mt-1.5 mx-2 font-black opacity-60 uppercase">{m.timestamp}</span>
                   </div>
                 )}
               </motion.div>
@@ -249,28 +295,27 @@ export default function Chat() {
           </AnimatePresence>
         </LayoutGroup>
 
-        {/* Status Indicators (Typing / Uploading) */}
+        {/* Status Indicators */}
         <div className="flex flex-col items-start gap-2">
           <AnimatePresence>
             {isUploading && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}>
-                <div className="bg-indigo-500/20 border border-indigo-500/30 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-lg">
-                  <Loader2 size={14} className="animate-spin text-indigo-400" />
-                  <span className="text-[10px] text-indigo-100 font-black uppercase tracking-widest">Sending Photo...</span>
+                <div className="bg-indigo-500/20 border border-indigo-500/30 px-3 py-1.5 rounded-xl flex items-center gap-2 shadow-lg backdrop-blur-sm">
+                  <Loader2 size={12} className="animate-spin text-indigo-400" />
+                  <span className="text-[9px] text-indigo-100 font-black uppercase tracking-widest">Uploading...</span>
                 </div>
               </motion.div>
             )}
             
             {anyoneTyping.length > 0 && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}>
-                <div className="bg-galaxy-surface/50 border border-white/10 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-lg">
+                <div className="bg-galaxy-surface/50 border border-white/10 px-3 py-1.5 rounded-xl flex items-center gap-2 shadow-lg">
                   <div className="flex gap-1">
-                    <motion.span animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 0.6 }} className="w-1 h-1 bg-indigo-400 rounded-full" />
-                    <motion.span animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }} className="w-1 h-1 bg-indigo-400 rounded-full" />
-                    <motion.span animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }} className="w-1 h-1 bg-indigo-400 rounded-full" />
+                    <motion.span animate={{ y: [0, -2, 0] }} transition={{ repeat: Infinity, duration: 0.6 }} className="w-1 h-1 bg-indigo-400 rounded-full" />
+                    <motion.span animate={{ y: [0, -2, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }} className="w-1 h-1 bg-indigo-400 rounded-full" />
                   </div>
-                  <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">
-                    {anyoneTyping.length === 1 ? `${anyoneTyping[0]} is typing...` : `${anyoneTyping.length} people typing...`}
+                  <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest leading-none">
+                    {anyoneTyping.length === 1 ? `${anyoneTyping[0]} is typing` : `${anyoneTyping.length} people typing`}
                   </span>
                 </div>
               </motion.div>
@@ -282,26 +327,36 @@ export default function Chat() {
       </main>
 
       {/* INPUT BAR */}
-      <footer className="bg-galaxy-surface/80 backdrop-blur-xl p-4 md:p-6 border-t border-white/10 relative">
+      <footer className="bg-galaxy-surface/80 backdrop-blur-xl p-3 md:p-6 border-t border-white/10 relative pb-safe">
         {/* Emoji Picker */}
         <div className="absolute bottom-full left-4 md:left-8 mb-4 z-[100]" ref={emojiPickerRef}>
           <AnimatePresence>
             {showEmojiPicker && (
-              <motion.div initial={{ opacity: 0, y: 20, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.9 }}>
-                <Picker data={data} onEmojiSelect={onEmojiSelect} theme="dark" set="native" />
+              <motion.div 
+                initial={{ opacity: 0, y: 20, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.9 }}
+                className="shadow-2xl shadow-black/50 overflow-hidden rounded-2xl"
+              >
+                <Picker 
+                  data={data} 
+                  onEmojiSelect={onEmojiSelect} 
+                  theme="dark" 
+                  set="native" 
+                  perLine={8}
+                  maxFrequentRows={1}
+                />
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        <form onSubmit={handleSend} className="max-w-4xl mx-auto flex gap-3 relative group">
+        <form onSubmit={handleSend} className="max-w-4xl mx-auto flex gap-2 md:gap-3 relative group">
           <div className="flex-1 relative flex items-center">
-            <div className="absolute left-2 flex items-center gap-1">
-              <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`p-1.5 rounded-full transition-all ${showEmojiPicker ? "bg-indigo-500 text-white" : "text-gray-500 hover:text-white"}`}>
-                <Smile size={20} />
+            <div className="absolute left-1.5 md:left-2 flex items-center gap-0.5 md:gap-1">
+              <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`p-1.5 md:p-2 rounded-xl transition-all ${showEmojiPicker ? "bg-indigo-500 text-white shadow-glow-indigo" : "text-gray-500 hover:text-white hover:bg-white/5"}`}>
+                <Smile size={18} className="md:size-5" />
               </button>
-              <button type="button" onClick={() => fileInputRef.current?.click()} className="p-1.5 text-gray-500 hover:text-white transition-all">
-                <ImageUp size={20} />
+              <button type="button" onClick={() => fileInputRef.current?.click()} className="p-1.5 md:p-2 text-gray-500 hover:text-white hover:bg-white/5 rounded-xl transition-all">
+                <ImageUp size={18} className="md:size-5" />
               </button>
             </div>
             
@@ -310,29 +365,33 @@ export default function Chat() {
             <input
               ref={inputRef}
               type="text"
-              placeholder={isConnected ? "Message room..." : "Lost connection..."}
+              placeholder={isConnected ? (window.innerWidth < 640 ? "Type..." : "Message room...") : "Reconnecting..."}
               value={message}
               onChange={handleTyping}
               disabled={!isConnected}
-              className="glass-input w-full pl-24"
+              className="glass-input w-full pl-22 md:pl-24 pr-4 py-3 md:py-3.5 text-sm md:text-base placeholder:text-gray-600 focus:placeholder:text-gray-500"
               style={{ backgroundColor: "#1e293b", color: "white" }}
             />
           </div>
           <button
             type="submit"
             disabled={!message.trim() || !isConnected}
-            className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-white/5 disabled:text-gray-700 text-white px-6 rounded-2xl transition-all active:scale-95 shadow-glow-indigo flex items-center justify-center border border-white/20"
+            className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-white/5 disabled:text-gray-800 text-white px-5 md:px-7 rounded-xl md:rounded-2xl transition-all active:scale-95 shadow-glow-indigo flex items-center justify-center border border-white/20 shrink-0"
           >
-            <Send size={20} />
+            <Send size={18} className="md:size-5" />
           </button>
         </form>
-      </footer>
+      </header>
 
       <style jsx="true">{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.05); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.1); }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0.75rem); }
+        @media (max-width: 640px) {
+           .glass-input { font-size: 16px !important; } /* Prevents iOS zoom */
+        }
       `}</style>
     </div>
   );
